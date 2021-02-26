@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from eda import NewWindow
+
 import pandas as pd
 
 import matplotlib
@@ -21,10 +23,22 @@ class MainApplication(tk.Frame):
 
         self.initialise_open_file()
 
+        self.eda()
+    
         self.close_plot_frame = tk.LabelFrame(root, text="Close Price")
         self.close_plot_frame.place(height=350, width=500, rely=0.3, relx=0)
 
         self.plotter = None
+
+        self.prices = None
+
+    def eda(self):
+        #Frame for performing EDA
+        self.eda_frame = tk.LabelFrame(root, text="EDA")
+        self.eda_frame.place(height=50, width=100, rely=0.65, relx=0)
+
+        button3 = tk.Button(self.eda_frame, text="Perform EDA", command=lambda: NewWindow(root, self.prices))
+        button3.place(relx=0.5, rely=0.5, anchor='center')
 
     def initialise_open_file(self):
         # Frame for visualizing data
@@ -43,10 +57,13 @@ class MainApplication(tk.Frame):
         self.label_file.place(rely=0, relx=0)
 
 
+    def create_window(self):
+        window = tk.Toplevel(root)
+
     def initialise_tree(self):
 
          # Frame for TreeView
-        self.frame1 = tk.LabelFrame(root, text="Excel Data")
+        self.frame1 = tk.LabelFrame(root, text="Price Data")
         self.frame1.place(height=200, width=1000, rely=0, relx=0)
 
         ## Treeview Widget
@@ -61,14 +78,30 @@ class MainApplication(tk.Frame):
         treescrollx.pack(side="bottom", fill="x") # make the scrollbar fill the x axis of the Treeview widget
         treescrolly.pack(side="right", fill="y") # make the scrollbar fill the y axis of the Treeview widget
 
-
-
     def File_dialog(self):
         filename = filedialog.askopenfilename(initialdir="/E:/OneDrive/Documents/University/Year 3/Project/Notebooks/Data",
                                             title="Select A File",
                                             filetype=(("csv files", "*.csv"),("All Files", "*.*")))
         self.label_file["text"] = filename
 
+    #Function to acquire and clean data
+    def get_OHLC_data(self, filename):
+
+        #Get dataset from Dukaskopy
+        data = pd.read_csv(filename)
+
+        data['Date'] = pd.to_datetime(data.Date, format="%d.%m.%Y %H:%M:%S.%f")
+
+        data['Date'] = pd.DataFrame(data.Date).applymap(lambda x: x.date())
+
+        data = data.set_index(data.Date).drop(columns=['Date'])
+        
+        #Remove data with volume of 0 as this corresponds to a weekend when no trading occurs
+        data = data[data['Volume'] != 0]
+        
+        data['Adj_Close'] = data.Close.ewm(alpha=0.1).mean()
+        
+        return data
 
     def Load_data(self):
         
@@ -80,7 +113,7 @@ class MainApplication(tk.Frame):
 
         filename = r"{}".format(file_path)
         
-        df = pd.read_csv(filename)
+        df = self.get_OHLC_data(filename)
 
         self.clear_data()
 
@@ -93,9 +126,7 @@ class MainApplication(tk.Frame):
         for row in df_rows:
             self.tv1.insert("", "end", values=row)
 
-        df['Date'] = pd.to_datetime(df.Date, format='%d.%m.%Y %H:%M:%S.%f')
-        df['Date'] = pd.DataFrame(df.Date).applymap(lambda x: x.date())
-        df = df.set_index(df.Date).drop(columns=['Date'])
+        self.prices = df.Close
 
         self.plot_close_price(prices=df.Close)
 
