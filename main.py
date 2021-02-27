@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from eda import NewWindow
+from eda import EDA
+from ta import TechnicalAnalysis
 
 import pandas as pd
 
@@ -24,6 +25,8 @@ class MainApplication(tk.Frame):
         self.initialise_open_file()
 
         self.eda()
+
+        self.generate_ta()
     
         self.close_plot_frame = tk.LabelFrame(root, text="Close Price")
         self.close_plot_frame.place(height=350, width=500, rely=0.3, relx=0)
@@ -32,12 +35,35 @@ class MainApplication(tk.Frame):
 
         self.prices = None
 
+    def generate_ta(self):
+
+        self.ta_frame = tk.LabelFrame(root, text="Feature Engineering")
+        self.ta_frame.place(height=50, width=200, rely=0.65, relx=0.055)
+
+        button2 = tk.Button(self.ta_frame, text="Generate TA Features", command=lambda: self.update_tree_ta())
+        button2.place(relx=0.5, rely=0.5, anchor='center')
+
+    def update_tree_ta(self):
+
+        self.df = TechnicalAnalysis(self.df).ta()
+
+        self.clear_data()
+
+        self.tv1["column"] = list(self.df.columns)
+        self.tv1["show"] = "headings"
+        for column in self.tv1["columns"]:
+            self.tv1.heading(column, text=column) # let the column heading = column name
+
+        df_rows = self.df.to_numpy().tolist() # turns the dataframe into a list of lists
+        for row in df_rows:
+            self.tv1.insert("", "end", values=row)
+
     def eda(self):
         #Frame for performing EDA
         self.eda_frame = tk.LabelFrame(root, text="EDA")
         self.eda_frame.place(height=50, width=100, rely=0.65, relx=0)
 
-        button3 = tk.Button(self.eda_frame, text="Perform EDA", command=lambda: NewWindow(root, self.prices))
+        button3 = tk.Button(self.eda_frame, text="Perform EDA", command=lambda: EDA(root, self.prices))
         button3.place(relx=0.5, rely=0.5, anchor='center')
 
     def initialise_open_file(self):
@@ -113,22 +139,22 @@ class MainApplication(tk.Frame):
 
         filename = r"{}".format(file_path)
         
-        df = self.get_OHLC_data(filename)
+        self.df = self.get_OHLC_data(filename)
 
         self.clear_data()
 
-        self.tv1["column"] = list(df.columns)
+        self.tv1["column"] = list(self.df.columns)
         self.tv1["show"] = "headings"
         for column in self.tv1["columns"]:
             self.tv1.heading(column, text=column) # let the column heading = column name
 
-        df_rows = df.to_numpy().tolist() # turns the dataframe into a list of lists
+        df_rows = self.df.to_numpy().tolist() # turns the dataframe into a list of lists
         for row in df_rows:
             self.tv1.insert("", "end", values=row)
 
-        self.prices = df.Close
+        self.prices = self.df.Close
 
-        self.plot_close_price(prices=df.Close)
+        self.plot_close_price(prices=self.prices)
 
     def plot_close_price(self, prices):
         #Plot close prices

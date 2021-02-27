@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from tkinter import *
 
 
-class NewWindow(Toplevel): 
+class EDA(Toplevel): 
       
     def __init__(self, master = None, data = None): 
           
