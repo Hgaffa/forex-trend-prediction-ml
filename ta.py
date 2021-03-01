@@ -38,8 +38,6 @@ class TechnicalAnalysis:
     def __init__(self, data = None): 
           
         self.df = data.copy()
-
-        self.ta()
         
     def ta(self):
 

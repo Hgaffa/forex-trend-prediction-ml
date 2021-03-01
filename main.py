@@ -3,6 +3,9 @@ from tkinter import filedialog, messagebox, ttk
 
 from eda import EDA
 from ta import TechnicalAnalysis
+from sa import SentimentAnalysis
+from fa import FundamentalAnalysis
+
 from stationary import Stationary
 
 import numpy as np
@@ -29,7 +32,7 @@ class MainApplication(tk.Frame):
 
         self.eda()
 
-        self.generate_ta()
+        self.generate_features()
     
         #initialise frame for changing plot data (dropdown menu)
         self.choose_data = tk.LabelFrame(root, text="Choose Plot Data")
@@ -89,13 +92,47 @@ class MainApplication(tk.Frame):
         for col in self.df.columns:
             self.w['menu'].add_command(label=col, command=tk._setit(self.variable, col))
 
-    def generate_ta(self):
+    #function to initialise buttons for feature generations
+    def generate_features(self):
 
         self.ta_frame = tk.LabelFrame(root, text="Feature Engineering")
-        self.ta_frame.place(height=50, width=200, rely=0.2, relx=0.22)
+        self.ta_frame.place(height=150, width=150, rely=0.2, relx=0.22)
 
-        button2 = tk.Button(self.ta_frame, text="Generate TA Features", command=lambda: self.update_tree_ta())
-        button2.place(relx=0.5, rely=0.5, anchor='center')
+        ta_button = tk.Button(self.ta_frame, text="Generate TA Features", command=lambda: self.update_tree_ta())
+        ta_button.place(relx=0.5, rely=0.2, anchor='center')
+
+        sa_button = tk.Button(self.ta_frame, text="Generate SA Features", command=lambda: self.update_tree_sa())
+        sa_button.place(relx=0.5, rely=0.47, anchor='center')
+
+        fa_button = tk.Button(self.ta_frame, text="Generate FA Features", command=lambda: self.update_tree_fa())
+        fa_button.place(relx=0.5, rely=0.75, anchor='center')
+
+    #function to generate TA features and propagate results
+    def update_tree_ta(self):
+
+        self.df = TechnicalAnalysis(self.df).ta()
+
+        self.tree_update()
+
+        self.feature_dropdown_update()
+
+    #function to generate SA features and propagate results
+    def update_tree_sa(self):
+
+        self.df = SentimentAnalysis(self.df).sa()
+
+        self.tree_update()
+
+        self.feature_dropdown_update()
+
+    #function to generate FA features and propagate results
+    def update_tree_fa(self):
+
+        self.df = FundamentalAnalysis(self.df).fa()
+
+        self.tree_update()
+
+        self.feature_dropdown_update()
 
     #function to initialize frame and button for detrending time series
     def stationarize(self):
@@ -163,14 +200,6 @@ class MainApplication(tk.Frame):
         self.tree_update()
 
         return None
-
-    def update_tree_ta(self):
-
-        self.df = TechnicalAnalysis(self.df).ta()
-
-        self.tree_update()
-
-        self.feature_dropdown_update()
 
     #function to refresh values in price data tree view
     def tree_update(self):
