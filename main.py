@@ -6,6 +6,7 @@ from ta import TechnicalAnalysis
 from sa import SentimentAnalysis
 from fa import FundamentalAnalysis
 from fs import FeatureSelection
+from heatmap import Heatmap
 
 from stationary import Stationary
 
@@ -49,14 +50,31 @@ class MainApplication(tk.Frame):
 
         self.initialize_feature_selection()
 
+        self.initialize_visualizations()
+
         self.initialise_feature_dropdown()
 
         self.plotter = None
 
+    def initialize_visualizations(self):
+
+        self.visualization_frame = tk.LabelFrame(root, text="Data Visualization")
+        self.visualization_frame.place(height=150, width=200, rely=0.2, relx=0.41)
+
+        correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: None)
+        correlation_button.place(relx=0.5, rely=0.2, anchor='center', width=150)
+
+        heatmap_button = tk.Button(self.visualization_frame, text="Heatmap Plot", command=lambda: Heatmap(root, self.df))
+        heatmap_button.place(relx=0.5, rely=0.47, anchor='center', width=150)
+
+        pca_button = tk.Button(self.visualization_frame, text="PCA Plot", command=lambda: None)
+        pca_button.place(relx=0.5, rely=0.75, anchor='center', width=150)
+
+
     def initialize_labelling(self):
 
         self.labelling_frame = tk.LabelFrame(root, text="Generate Labels")
-        self.labelling_frame.place(height=50, width=200, rely=0.25, relx=0.31)
+        self.labelling_frame.place(height=50, width=200, rely=0.25, relx=0.3)
 
         label_generation_button = tk.Button(self.labelling_frame, text="Label Data", command=lambda: self.generate_labels(),padx=10)
         label_generation_button.place(relx = 0.5, rely = 0.5, anchor='center')
@@ -87,7 +105,7 @@ class MainApplication(tk.Frame):
     def initialize_feature_selection(self):
 
         self.feature_selection_frame = tk.LabelFrame(root, text="Feature Selection")
-        self.feature_selection_frame.place(height=50, width=200, rely=0.3, relx=0.31)
+        self.feature_selection_frame.place(height=50, width=200, rely=0.3, relx=0.3)
 
         self.variable_fs = tk.StringVar(root)
         self.variable_fs.set(5) #default value
@@ -129,7 +147,7 @@ class MainApplication(tk.Frame):
 
         #frame for transform button for stationarity
         self.transform_frame = tk.LabelFrame(root, text="Transform Data")
-        self.transform_frame.place(height=50, width=200, rely=0.2, relx=0.31)
+        self.transform_frame.place(height=50, width=200, rely=0.2, relx=0.3)
 
         button2 = tk.Button(self.transform_frame, text="Transfrom Data", command=lambda: self.data_transform(),padx=10)
         button2.place(relx = 0.5, rely= 0.5, anchor='center')
