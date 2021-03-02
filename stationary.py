@@ -59,6 +59,10 @@ class Stationary:
         non_stationary = []
             
         for column in self.df.columns:
+
+            if column == "Labels":
+
+                continue
             
             check_stationary = adfuller(self.df[column].values)
 

@@ -5,6 +5,7 @@ from eda import EDA
 from ta import TechnicalAnalysis
 from sa import SentimentAnalysis
 from fa import FundamentalAnalysis
+from fs import FeatureSelection
 
 from stationary import Stationary
 
@@ -42,9 +43,96 @@ class MainApplication(tk.Frame):
         self.close_plot_frame = tk.LabelFrame(root, text="Data Plot")
         self.close_plot_frame.place(height=400, width=1000, rely=0.35, relx=0)
 
+        self.initialize_transform()
+
+        self.initialize_labelling()
+
+        self.initialize_feature_selection()
+
         self.initialise_feature_dropdown()
 
         self.plotter = None
+
+    def initialize_labelling(self):
+
+        self.labelling_frame = tk.LabelFrame(root, text="Generate Labels")
+        self.labelling_frame.place(height=50, width=200, rely=0.25, relx=0.31)
+
+        label_generation_button = tk.Button(self.labelling_frame, text="Label Data", command=lambda: self.generate_labels(),padx=10)
+        label_generation_button.place(relx = 0.5, rely = 0.5, anchor='center')
+
+
+    #function to generate labels via fixed horizon
+    def generate_labels(self):
+
+        data = self.og_df[self.og_df.index.isin(self.df.index)]
+
+        data['HL_Avg_Rolling'] = pd.DataFrame((data.High_MA + data.Low_MA)/2)
+
+        data['HL_Avg'] = pd.DataFrame((data.High + data.Low)/2)
+
+        returns = np.log(data.HL_Avg) - np.log(data.HL_Avg.shift(1))
+
+        self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+
+        self.df['Labels'] = self.labels.values
+
+        print(self.labels.value_counts())
+
+        self.tree_update()
+
+        self.feature_dropdown_update()
+
+    #function to initialise frame for feature selection
+    def initialize_feature_selection(self):
+
+        self.feature_selection_frame = tk.LabelFrame(root, text="Feature Selection")
+        self.feature_selection_frame.place(height=50, width=200, rely=0.3, relx=0.31)
+
+        self.variable_fs = tk.StringVar(root)
+        self.variable_fs.set(5) #default value
+
+        self.num_features = OptionMenu(self.feature_selection_frame, self.variable_fs, *[5,8,12,15,17,20])
+        self.num_features.place(relx=0.15, rely=0.45, anchor='center')
+
+        fs_button = tk.Button(self.feature_selection_frame, text="Select Features", command=lambda: self.feature_selection(),padx=10)
+        fs_button.place(rely=0.45, relx=0.7, anchor='center')
+
+    def feature_selection(self):
+
+        #make sure number of columns selected < num of columns in dataframe
+        if int(self.variable_fs.get()) > len(self.df.columns):
+
+            print("Bad Number of Feature to Select...")
+
+        else:
+
+            best_features = FeatureSelection(self.df).feature_selection(int(self.variable_fs.get()))
+
+            if 'Labels' in self.df.columns:
+
+                labels_index = self.df.columns.get_loc("Labels")
+
+                best_features.append(labels_index)
+
+            self.df = self.df[self.df.columns[best_features]]
+
+            self.tree_update()
+
+            self.feature_dropdown_update()
+
+    def initialize_transform(self):
+
+        #frame for adf test + output
+        self.stationary_frame = tk.LabelFrame(root, text="ADF Test/Stationarity Output")
+        self.stationary_frame.place(height=200, width=1000, rely=0.75, relx=0)
+
+        #frame for transform button for stationarity
+        self.transform_frame = tk.LabelFrame(root, text="Transform Data")
+        self.transform_frame.place(height=50, width=200, rely=0.2, relx=0.31)
+
+        button2 = tk.Button(self.transform_frame, text="Transfrom Data", command=lambda: self.data_transform(),padx=10)
+        button2.place(relx = 0.5, rely= 0.5, anchor='center')
 
     #function to initialise dropdown menu in data plot frame and plot button
     def initialise_feature_dropdown(self):
@@ -136,17 +224,6 @@ class MainApplication(tk.Frame):
 
     #function to initialize frame and button for detrending time series
     def stationarize(self):
-
-        #frame for adf test + output
-        self.stationary_frame = tk.LabelFrame(root, text="ADF Test/Stationarity Output")
-        self.stationary_frame.place(height=200, width=1000, rely=0.75, relx=0)
-
-        #frame for transform button for stationarity
-        self.transform_frame = tk.LabelFrame(root, text="Transform Data")
-        self.transform_frame.place(height=50, width=200, rely=0.2, relx=0.34)
-
-        button2 = tk.Button(self.transform_frame, text="Transfrom Data", command=lambda: self.data_transform(),padx=10)
-        button2.place(relx = 0.5, rely= 0.5, anchor='center')
 
         self.adf_text = StringVar()
 
@@ -282,6 +359,12 @@ class MainApplication(tk.Frame):
         data = data[data['Volume'] != 0]
         
         data['Adj_Close'] = data.Close.ewm(alpha=0.1).mean()
+
+        data['High_MA'] = data.High.rolling(3).mean()
+
+        data['Low_MA'] = data.Low.rolling(3).mean()
+
+        data = data.dropna()
         
         return data
 
@@ -293,6 +376,8 @@ class MainApplication(tk.Frame):
         self.df = self.get_OHLC_data(filename)
 
         self.clear_data()
+
+        self.og_df = self.df
 
         self.tv1["column"] = list(self.df.columns)
         self.tv1["show"] = "headings"
