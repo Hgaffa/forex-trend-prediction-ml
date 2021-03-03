@@ -9,6 +9,7 @@ from fs import FeatureSelection
 from heatmap import Heatmap
 from corr_plot import CorrelationPlot
 from pca import PCAPlot
+from models import Models
 
 from stationary import Stationary
 
@@ -19,6 +20,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from tkinter import *
@@ -28,6 +30,9 @@ class MainApplication(tk.Frame):
 
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, *kwargs)
+
+        self.df = None
+
         self.parent = parent
 
         self.initialise_tree()
@@ -50,6 +55,8 @@ class MainApplication(tk.Frame):
 
         self.initialize_labelling()
 
+        self.initialize_model_frames()
+
         self.initialize_feature_selection()
 
         self.initialize_visualizations()
@@ -57,6 +64,94 @@ class MainApplication(tk.Frame):
         self.initialise_feature_dropdown()
 
         self.plotter = None
+
+    def initialize_model_frames(self):
+
+        self.classifier_frame = tk.LabelFrame(root, text="Choose Classifier")
+        self.classifier_frame.place(height=60, width=450, relx=0.53)
+
+        self.parameters = tk.LabelFrame(root, text="Set Model Parameters")
+        self.parameters.place(height=200, width=450, relx=0.53, rely=0.07)
+
+        self.variable_model_choice = tk.StringVar(root)
+        self.variable_model_choice.set("KNN") #default value
+
+        self.models_dropdown = OptionMenu(self.classifier_frame, self.variable_model_choice, *["KNN",'SVM','RF','ADB'], command= lambda event: self.set_model_params())
+        self.models_dropdown.place(relx=0.1, rely=0.5, anchor='center')
+
+        train_button = tk.Button(self.classifier_frame, text="Train Model", command=lambda: self.train_model(),padx=10)
+        train_button.place(rely=0.5, relx=0.3, anchor='center')
+
+        test_button = tk.Button(self.classifier_frame, text="Test Model", command=lambda: None,padx=10)
+        test_button.place(rely=0.5, relx=0.52, anchor='center')
+
+        backtest_button = tk.Button(self.classifier_frame, text="Backtest Model", command=lambda: None,padx=10)
+        backtest_button.place(rely=0.5, relx=0.76, anchor='center')
+
+    def train_model(self):
+
+        print("MODEL TRAINING")
+        print(self.df)
+
+        if self.variable_model_choice.get() == "KNN":
+
+            Models(root, self.df, self.old_returns).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+
+    def set_model_params(self):
+
+        #destroy old widget params in params frame
+        for widget in self.parameters.winfo_children():
+            widget.destroy()
+
+        if self.variable_model_choice.get() == "KNN":
+
+            self.knn()
+
+        else:
+
+            self.other()
+
+    def knn(self):
+
+        #widgets and menu for num neighbours parameter
+        nn_label_knn = tk.Label(self.parameters, text="n_neighbours:", padx=10)
+        nn_label_knn.grid(row = 0, column = 0, sticky = 'W', pady = 2) 
+
+        num_neighbours = []
+        for i in range(5, int(np.sqrt(len(self.df)))+1,2):
+
+            num_neighbours.append(i)
+
+        self.num_neighb_var = tk.StringVar(root)
+        self.num_neighb_var.set(5) #default value
+
+        self.num_neigh = OptionMenu(self.parameters, self.num_neighb_var, *num_neighbours)
+        self.num_neigh.grid(row = 0, column = 1, pady = 2) 
+
+        #widgets and menu for metric chosen parameter
+        metric_label_knn = tk.Label(self.parameters, text="Metric:", padx=10)
+        metric_label_knn.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        self.metric_knn = tk.StringVar(root)
+        self.metric_knn.set('euclidean') #default value
+
+        self.metric_knn_menu = OptionMenu(self.parameters, self.metric_knn, *['euclidean','manhattan','minkowski','chebyshev'])
+        self.metric_knn_menu.grid(row = 1, column = 1, pady = 2) 
+
+        #widgets and menu for alg chosen parameter
+        alg_label_knn = tk.Label(self.parameters, text="Alg:", padx=10)
+        alg_label_knn.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+
+        self.alg_knn = tk.StringVar(root)
+        self.alg_knn.set('auto') #default value
+
+        self.alg_knn_menu = OptionMenu(self.parameters, self.alg_knn, *['auto', 'ball_tree', 'kd_tree', 'brute'])
+        self.alg_knn_menu.grid(row = 2, column = 1, pady = 2) 
+
+    def other(self):
+
+        label = tk.Label(self.parameters, text="Nope")
+        label.place(relx=0.2, rely=0.3)
 
     def initialize_visualizations(self):
 
@@ -95,6 +190,8 @@ class MainApplication(tk.Frame):
 
         returns = np.log(data.HL_Avg) - np.log(data.HL_Avg.shift(1))
 
+        self.old_returns = data.Close.pct_change().shift(-1)
+
         self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
 
         print(self.df.index)
@@ -108,6 +205,7 @@ class MainApplication(tk.Frame):
         self.tree_update()
 
         self.feature_dropdown_update()
+
 
     #function to initialise frame for feature selection
     def initialize_feature_selection(self):
@@ -172,31 +270,29 @@ class MainApplication(tk.Frame):
         plot_button = tk.Button(self.choose_data, text="Plot Feature", command=lambda: self.update_plot())
         plot_button.place(relx=0.55, rely=0.16)
 
+        fig = plt.figure()
+
+        canvas = FigureCanvasTkAgg(fig,master=self.close_plot_frame)
+        self.toolbar = NavigationToolbar2Tk(canvas, self.close_plot_frame)
+        self.toolbar.update()
+        self.plotter = canvas.get_tk_widget()
+        self.plotter.pack(fill='both')
+
     def update_plot(self):
 
-        if self.plotter:
-
-            self.plotter.destroy()
         #Plot chosen feature
         plt.rc('xtick',labelsize=6)
         plt.rc('ytick',labelsize=6)
 
-        fig = Figure(figsize=(5,10))
+        plt.clf()
 
-        ax = fig.add_subplot(111)
+        plt.plot(self.df[self.variable.get()])
 
-        ax.plot(self.df[self.variable.get()])
+        plt.title(self.variable.get())
+        plt.ylabel(self.variable.get())
+        plt.xlabel("Date")
 
-        ax.set_title(self.variable.get(), fontsize=6)
-        ax.set_ylabel(self.variable.get(), fontsize=6)
-        ax.set_xlabel("Date", fontsize=6)
-
-        canvas = FigureCanvasTkAgg(fig,master=self.close_plot_frame)
-        self.plotter = canvas.get_tk_widget()
-        self.plotter.pack(fill='both')
-        canvas.draw()
-
-        ax.clear()
+        plt.gcf().canvas.draw()
 
     def feature_dropdown_update(self):
 

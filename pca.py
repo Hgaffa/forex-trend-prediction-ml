@@ -6,6 +6,8 @@ import pandas as pd
 
 from statsmodels.tsa.seasonal import seasonal_decompose
 
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+
 import seaborn as sns
 
 from sklearn.decomposition import PCA 
@@ -45,6 +47,13 @@ class PCAPlot(Toplevel):
             self.plotter.destroy()
 
         fig = Figure(figsize=(20, 17))
+
+        canvas = FigureCanvasTkAgg(fig,master=self.pca_frame)
+        toolbar = NavigationToolbar2Tk(canvas, self.pca_frame)
+        toolbar.update()
+        self.plotter = canvas.get_tk_widget()
+        self.plotter.pack(fill='both')
+
         ax = fig.subplots()
 
         X_copy = self.df.copy().drop(columns=['Labels'])
@@ -63,7 +72,6 @@ class PCAPlot(Toplevel):
 
         print("New Shape: ", X_pca.shape)
 
-        fig, ax = plt.subplots(figsize=(15,10))
         ax = fig.add_subplot(111, projection='3d')
 
         plot_colours = []
@@ -93,8 +101,4 @@ class PCAPlot(Toplevel):
         ax.set_ylabel("PC2")
         ax.set_zlabel("PC3")
         ax.set_title("PCA on the iris data set")
-
-        canvas = FigureCanvasTkAgg(fig,master=self.pca_frame)
-        self.plotter = canvas.get_tk_widget()
-        self.plotter.pack(fill='both')
-        canvas.draw()
+        

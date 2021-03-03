@@ -10,6 +10,7 @@ import seaborn as sns
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from tkinter import *
@@ -40,6 +41,14 @@ class CorrelationPlot(Toplevel):
             self.plotter.destroy()
 
         fig = Figure(figsize=(20, 17))
+
+        #canvas must be put before plotting to allow for interactiveness
+        canvas = FigureCanvasTkAgg(fig,master=self.corr_plot)
+        toolbar = NavigationToolbar2Tk(canvas, self.corr_plot)
+        toolbar.update()
+        self.plotter = canvas.get_tk_widget()
+        self.plotter.pack(fill='both')
+
         ax = fig.subplots()
 
         corr_sent = self.df.copy().drop(columns=['Labels']).corrwith(self.df.Returns.shift(-1))
@@ -47,8 +56,3 @@ class CorrelationPlot(Toplevel):
         corr_sent.sort_values(ascending=False).plot.barh(title='Feature Correlation with Next Day Returns', ax=ax)
 
         ax.tick_params(axis = 'both', which = 'major', labelsize = 5)
-
-        canvas = FigureCanvasTkAgg(fig,master=self.corr_plot)
-        self.plotter = canvas.get_tk_widget()
-        self.plotter.pack(fill='both')
-        canvas.draw()

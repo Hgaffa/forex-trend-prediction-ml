@@ -10,6 +10,7 @@ import seaborn as sns
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from tkinter import *
@@ -42,6 +43,13 @@ class Heatmap(Toplevel):
         sns.set(font_scale = 0.5)
 
         fig = Figure(figsize=(20, 17))
+
+        canvas = FigureCanvasTkAgg(fig,master=self.heatmap_frame)
+        toolbar = NavigationToolbar2Tk(canvas, self.heatmap_frame)
+        toolbar.update()
+        self.plotter = canvas.get_tk_widget()
+        self.plotter.pack(fill='both')
+
         ax = fig.subplots()
 
         correlation_data = self.df.corr()
@@ -53,8 +61,3 @@ class Heatmap(Toplevel):
         plot.set_xticklabels(plot.get_xticklabels(), rotation = 90)
 
         plt.rcParams.update({'figure.figsize': (15,15)})
-
-        canvas = FigureCanvasTkAgg(fig,master=self.heatmap_frame)
-        self.plotter = canvas.get_tk_widget()
-        self.plotter.pack(fill='both')
-        canvas.draw()
