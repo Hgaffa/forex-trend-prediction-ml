@@ -7,6 +7,8 @@ from sa import SentimentAnalysis
 from fa import FundamentalAnalysis
 from fs import FeatureSelection
 from heatmap import Heatmap
+from corr_plot import CorrelationPlot
+from pca import PCAPlot
 
 from stationary import Stationary
 
@@ -61,13 +63,13 @@ class MainApplication(tk.Frame):
         self.visualization_frame = tk.LabelFrame(root, text="Data Visualization")
         self.visualization_frame.place(height=150, width=200, rely=0.2, relx=0.41)
 
-        correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: None)
+        correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: CorrelationPlot(root, self.df))
         correlation_button.place(relx=0.5, rely=0.2, anchor='center', width=150)
 
         heatmap_button = tk.Button(self.visualization_frame, text="Heatmap Plot", command=lambda: Heatmap(root, self.df))
         heatmap_button.place(relx=0.5, rely=0.47, anchor='center', width=150)
 
-        pca_button = tk.Button(self.visualization_frame, text="PCA Plot", command=lambda: None)
+        pca_button = tk.Button(self.visualization_frame, text="PCA Plot", command=lambda: PCAPlot(root, self.df))
         pca_button.place(relx=0.5, rely=0.75, anchor='center', width=150)
 
 
@@ -83,6 +85,8 @@ class MainApplication(tk.Frame):
     #function to generate labels via fixed horizon
     def generate_labels(self):
 
+        self.og_df.index = pd.to_datetime(self.og_df.index)
+
         data = self.og_df[self.og_df.index.isin(self.df.index)]
 
         data['HL_Avg_Rolling'] = pd.DataFrame((data.High_MA + data.Low_MA)/2)
@@ -92,6 +96,10 @@ class MainApplication(tk.Frame):
         returns = np.log(data.HL_Avg) - np.log(data.HL_Avg.shift(1))
 
         self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+
+        print(self.df.index)
+
+        print(self.og_df.index)
 
         self.df['Labels'] = self.labels.values
 
@@ -381,6 +389,8 @@ class MainApplication(tk.Frame):
         data['High_MA'] = data.High.rolling(3).mean()
 
         data['Low_MA'] = data.Low.rolling(3).mean()
+
+        data['Returns'] = pd.DataFrame((data.High_MA+data.Low_MA/2).pct_change()).values
 
         data = data.dropna()
         

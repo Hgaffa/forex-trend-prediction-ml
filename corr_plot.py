@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from tkinter import *
 
 
-class Heatmap(Toplevel): 
+class CorrelationPlot(Toplevel): 
       
     def __init__(self, master = None, data = None): 
           
@@ -25,36 +25,30 @@ class Heatmap(Toplevel):
 
         self.plotter=None
 
-        #Frame for heatmap
-        self.heatmap_frame = tk.LabelFrame(self, text="Heatmap")
-        self.heatmap_frame.place(height=700, width=800, rely=0, relx=0)
+        #Frame for correlation plot
+        self.corr_plot = tk.LabelFrame(self, text="Correlation with future returns")
+        self.corr_plot.place(height=700, width=800, rely=0, relx=0)
 
         self.df = data
 
-        self.plot_heatmap()
+        self.plot_correlation()
 
-    def plot_heatmap(self):
+    def plot_correlation(self):
 
         if self.plotter:
 
             self.plotter.destroy()
 
-        sns.set(font_scale = 0.5)
-
         fig = Figure(figsize=(20, 17))
         ax = fig.subplots()
 
-        correlation_data = self.df.corr()
+        corr_sent = self.df.copy().drop(columns=['Labels']).corrwith(self.df.Returns.shift(-1))
 
-        plot = sns.heatmap(correlation_data, ax=ax)
+        corr_sent.sort_values(ascending=False).plot.barh(title='Feature Correlation with Next Day Returns', ax=ax)
 
-        plot.set_yticklabels(plot.get_yticklabels(), rotation = 0)
+        ax.tick_params(axis = 'both', which = 'major', labelsize = 5)
 
-        plot.set_xticklabels(plot.get_xticklabels(), rotation = 90)
-
-        plt.rcParams.update({'figure.figsize': (15,15)})
-
-        canvas = FigureCanvasTkAgg(fig,master=self.heatmap_frame)
+        canvas = FigureCanvasTkAgg(fig,master=self.corr_plot)
         self.plotter = canvas.get_tk_widget()
         self.plotter.pack(fill='both')
         canvas.draw()
