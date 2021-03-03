@@ -74,7 +74,10 @@ class Models:
         
         self.val = self.get_val_data()
 
-        self.old_returns = old_returns
+        self.old_returns = old_returns[self.df.index]
+
+        print("sad[;as;lasd,d,a", self.old_returns)
+        print(self.df)
 
     def get_val_data(self):
 
@@ -87,6 +90,15 @@ class Models:
     #Function used to evaluate the financial viability of a model
     def financial_report(self, predictions, returns):
         
+        comb = pd.DataFrame(returns).reset_index()
+        comb = comb.drop(columns=['Date'])
+
+        #log returns graph
+        tot = pd.DataFrame(predictions.values * comb.values)
+
+        strategy = tot.cumsum().apply(np.exp)
+        norm = comb.cumsum().apply(np.exp)
+
         cum_returns = pd.DataFrame(index=predictions.index, columns=['Returns'])
         
         total = 1000
@@ -113,7 +125,7 @@ class Models:
         
         ax2.plot(ind, cum_returns)
         
-        return sr, total
+        return sr, total, strategy, norm
 
     #General model evaluation report function
     def model_report(self, model, scaled):
@@ -137,7 +149,7 @@ class Models:
         f1 = f1_score(y_test, pred, average='weighted')
         
         #Financial report
-        sr, total = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
+        sr, total, strategy, norm = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
         
         print()
         print("Model Results:")
@@ -156,7 +168,7 @@ class Models:
                                     display_labels=[-1,1],
                                     cmap=plt.cm.Blues, ax=ax)
         
-        plt.show()
+        return clf, X_test, y_test, pred, sr, total, strategy, norm
 
     #Function used to split data
     def get_split(self, train_size, scale):
@@ -196,5 +208,5 @@ class Models:
 
         clf.fit(X_train, y_train)
 
-        self.model_report(clf, True)
+        return self.model_report(clf, True)
 

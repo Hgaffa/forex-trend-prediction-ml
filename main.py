@@ -11,6 +11,11 @@ from corr_plot import CorrelationPlot
 from pca import PCAPlot
 from models import Models
 
+import seaborn as sns
+
+from sklearn.metrics import plot_confusion_matrix
+from sklearn.metrics import confusion_matrix
+
 from stationary import Stationary
 
 import numpy as np
@@ -67,9 +72,33 @@ class MainApplication(tk.Frame):
 
     def initialize_model_frames(self):
 
+        #frame for returns plot
+        fig3 = plt.Figure()
+        
+        self.backtest_frame = tk.LabelFrame(root, text="Backtest Returns")
+        self.backtest_frame.place(height = 300, width = 900, relx=0.53, rely=0.4)
+
+        self.bt_canvas = FigureCanvasTkAgg(fig3,master=self.backtest_frame)
+        self.bt_toolbar = NavigationToolbar2Tk(self.bt_canvas, self.backtest_frame)
+        self.bt_toolbar.update()
+        self.bt_plotter = self.bt_canvas.get_tk_widget()
+        self.bt_plotter.pack(fill='both',anchor='center')
+
+
+        #frame for confusion matrix
+        self.cm_frame = tk.LabelFrame(root, text="Model Conufsion Matrix")
+        self.cm_frame.place(height=400, width=400, relx=0.78)
+
+        fig2 = plt.Figure()
+
+        #for plotting confusion matrix
+        self.cm_canvas = FigureCanvasTkAgg(fig2,master=self.cm_frame)
+        self.cm_canvas.get_tk_widget().pack(fill='both')
+        #frame for choosing classifier
         self.classifier_frame = tk.LabelFrame(root, text="Choose Classifier")
         self.classifier_frame.place(height=60, width=450, relx=0.53)
 
+        #frame for choosing model parameters
         self.parameters = tk.LabelFrame(root, text="Set Model Parameters")
         self.parameters.place(height=200, width=450, relx=0.53, rely=0.07)
 
@@ -90,12 +119,40 @@ class MainApplication(tk.Frame):
 
     def train_model(self):
 
-        print("MODEL TRAINING")
-        print(self.df)
-
         if self.variable_model_choice.get() == "KNN":
 
-            Models(root, self.df, self.old_returns).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+            clf, X_test, y_test, pred, sr, total, strategy, norm = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+
+            plt.clf()
+
+            fig, ax = plt.subplots(figsize=(4,4))
+            ax.clear()
+            ax.grid(False)
+
+            plot_confusion_matrix(clf, X_test, y_test,                           
+                                                display_labels=[-1,1],
+                                                cmap=plt.cm.Blues, ax=ax)
+            
+            self.cm_canvas.figure = fig
+
+            self.cm_canvas.draw()
+
+            plt.clf()
+
+            fig2, ax2 = plt.subplots(figsize=(8,2.5))
+            ax2.clear()
+            ax2.grid(True)
+            ax2.set_title("Model Cumulative Returns")
+            ax2.set_ylabel("Returns")
+            ax2.set_xlabel("Date")
+
+            ax2.plot(norm, label="Returns")
+            ax2.plot(strategy, label="Strategy")
+
+            self.bt_canvas.figure = fig2
+
+            self.bt_canvas.draw()
+
 
     def set_model_params(self):
 
@@ -188,9 +245,9 @@ class MainApplication(tk.Frame):
 
         data['HL_Avg'] = pd.DataFrame((data.High + data.Low)/2)
 
-        returns = np.log(data.HL_Avg) - np.log(data.HL_Avg.shift(1))
+        returns = np.log(data.HL_Avg_Rolling) - np.log(data.HL_Avg_Rolling.shift(1))
 
-        self.old_returns = data.Close.pct_change().shift(-1)
+        self.old_returns = np.log(data.Close) - np.log(data.Close.shift(1))
 
         self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
 
@@ -272,10 +329,10 @@ class MainApplication(tk.Frame):
 
         fig = plt.figure()
 
-        canvas = FigureCanvasTkAgg(fig,master=self.close_plot_frame)
-        self.toolbar = NavigationToolbar2Tk(canvas, self.close_plot_frame)
+        self.canvas = FigureCanvasTkAgg(fig,master=self.close_plot_frame)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.close_plot_frame)
         self.toolbar.update()
-        self.plotter = canvas.get_tk_widget()
+        self.plotter = self.canvas.get_tk_widget()
         self.plotter.pack(fill='both')
 
     def update_plot(self):
@@ -286,13 +343,18 @@ class MainApplication(tk.Frame):
 
         plt.clf()
 
-        plt.plot(self.df[self.variable.get()])
 
-        plt.title(self.variable.get())
-        plt.ylabel(self.variable.get())
-        plt.xlabel("Date")
+        fig, ax = plt.subplots(figsize=(10,3.2))
 
-        plt.gcf().canvas.draw()
+        ax.plot(self.df[self.variable.get()])
+        ax.grid(True)
+
+        ax.set_title(self.variable.get())
+        ax.set_ylabel(self.variable.get())
+
+        self.canvas.figure = fig
+
+        self.canvas.draw()
 
     def feature_dropdown_update(self):
 
