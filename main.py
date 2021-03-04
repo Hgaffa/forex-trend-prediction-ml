@@ -72,6 +72,22 @@ class MainApplication(tk.Frame):
 
     def initialize_model_frames(self):
 
+        #frame for val_curve
+        self.val_curve_frame = tk.LabelFrame(root, text="Validation Curve")
+        self.val_curve_frame.place(height = 300, width = 900, relx=0.53, rely=0.7)
+
+        fig4 = plt.Figure()
+
+        self.vc_canvas = FigureCanvasTkAgg(fig4,master=self.val_curve_frame)
+        self.vc_toolbar = NavigationToolbar2Tk(self.vc_canvas, self.val_curve_frame)
+        self.vc_toolbar.update()
+        self.vc_plotter = self.vc_canvas.get_tk_widget()
+        self.vc_plotter.pack(fill='both',anchor='center')
+
+        #frame for stdout evaluation
+        self.eval_frame = tk.LabelFrame(root, text="Model Results")
+        self.eval_frame.place(height=120, width= 450, relx=0.53, rely=0.27)
+
         #frame for returns plot
         fig3 = plt.Figure()
         
@@ -83,7 +99,6 @@ class MainApplication(tk.Frame):
         self.bt_toolbar.update()
         self.bt_plotter = self.bt_canvas.get_tk_widget()
         self.bt_plotter.pack(fill='both',anchor='center')
-
 
         #frame for confusion matrix
         self.cm_frame = tk.LabelFrame(root, text="Model Conufsion Matrix")
@@ -121,37 +136,72 @@ class MainApplication(tk.Frame):
 
         if self.variable_model_choice.get() == "KNN":
 
-            clf, X_test, y_test, pred, sr, total, strategy, norm = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
 
-            plt.clf()
+        elif self.variable_model_choice.get() == "RF":
 
-            fig, ax = plt.subplots(figsize=(4,4))
-            ax.clear()
-            ax.grid(False)
+            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_rf(int(self.num_est_rf.get()), int(self.mss_rf.get()))
 
-            plot_confusion_matrix(clf, X_test, y_test,                           
-                                                display_labels=[-1,1],
-                                                cmap=plt.cm.Blues, ax=ax)
-            
-            self.cm_canvas.figure = fig
+        elif self.variable_model_choice.get() == "SVM":
 
-            self.cm_canvas.draw()
+            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
 
-            plt.clf()
+        plt.clf()
 
-            fig2, ax2 = plt.subplots(figsize=(8,2.5))
-            ax2.clear()
-            ax2.grid(True)
-            ax2.set_title("Model Cumulative Returns")
-            ax2.set_ylabel("Returns")
-            ax2.set_xlabel("Date")
+        fig, ax = plt.subplots(figsize=(4,4))
+        ax.clear()
+        ax.grid(False)
 
-            ax2.plot(norm, label="Returns")
-            ax2.plot(strategy, label="Strategy")
+        plot_confusion_matrix(clf, X_test, y_test,                           
+                                            display_labels=[-1,1],
+                                            cmap=plt.cm.Blues, ax=ax)
+        
+        self.cm_canvas.figure = fig
 
-            self.bt_canvas.figure = fig2
+        self.cm_canvas.draw()
 
-            self.bt_canvas.draw()
+        plt.clf()
+
+        fig2, ax2 = plt.subplots(figsize=(8,2.5))
+        ax2.clear()
+        ax2.grid(True)
+        ax2.set_title("Model Cumulative Returns")
+        ax2.set_ylabel("Returns")
+        ax2.set_xlabel("Date")
+
+        ax2.plot(norm, label="Returns")
+        ax2.plot(strategy, label="Strategy")
+
+        self.bt_canvas.figure = fig2
+
+        self.bt_canvas.draw()
+        
+        plt.clf()
+
+        fig3, ax3 = plt.subplots(figsize=(8,2.5))
+        ax3.clear()
+        ax3.plot(training_sets, train_scores, c='gold', label='Training Error')
+        ax3.plot(training_sets, val_scores, c='blue', label='Validation Error')
+
+        ax3.set_title("Validation Curve")
+        ax3.legend()
+
+        self.vc_canvas.figure = fig3
+
+        self.vc_canvas.draw()
+
+        #output model results financials
+        sr_label = tk.Label(self.eval_frame, text="Sharpe's Ratio: {0:.2f}".format(sr.values[0]), padx=10)
+        sr_label.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        eq_before_label = tk.Label(self.eval_frame, text="Equity before backtest: £1000.00", padx=10)
+        eq_before_label.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+        
+        eq_after_label = tk.Label(self.eval_frame, text="Equity after backtest: £{0:.2f}".format(total.values[0]), padx=10)
+        eq_after_label.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
+
+        tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((total.values[0] - 1000)/1000), padx=10)
+        tot_return_label.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
 
 
     def set_model_params(self):
@@ -164,9 +214,89 @@ class MainApplication(tk.Frame):
 
             self.knn()
 
-        else:
+        elif self.variable_model_choice.get() == "RF":
 
-            self.other()
+            self.rf()
+
+        elif self.variable_model_choice.get() == "SVM":
+
+            self.svm()
+
+    def svm(self):
+
+        #widgets and menu for kernels
+        kernel_label_svm = tk.Label(self.parameters, text="Kernel:", padx=10)
+        kernel_label_svm.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        self.kernel_svm = tk.StringVar(root)
+        self.kernel_svm.set('rbf') #default value
+
+        self.kernel_svm_menu = OptionMenu(self.parameters, self.kernel_svm, *['rbf'])
+        self.kernel_svm_menu.grid(row = 1, column = 1, pady = 2) 
+
+        #widgets and menu for C list
+        c_label_svm = tk.Label(self.parameters, text="C:", padx=10)
+        c_label_svm.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+
+        gamma_exp = [-15,-13,-11,-9,-7,-5,-3,-1,1,3]
+        c_exp = [-5,-3,-1,1,3,5,7,9,11,13,15]
+
+        gamma_list = []
+        c_list = []
+
+        for i in gamma_exp:
+            gamma_list.append(2**i)
+
+        for i in c_exp:
+            c_list.append(2**i)
+
+        self.c_svm = tk.StringVar(root)
+        self.c_svm.set(2) #default value
+
+        self.c_svm_menu = OptionMenu(self.parameters, self.c_svm, *c_list)
+        self.c_svm_menu.grid(row = 2, column = 1, pady = 2) 
+
+        #widgets and menu for gamma
+        gamma_label_svm = tk.Label(self.parameters, text="Gamma:", padx=10)
+        gamma_label_svm.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
+
+        self.gamma_svm = tk.StringVar(root)
+        self.gamma_svm.set(0.1) #default value
+
+        self.gamma_svm_menu = OptionMenu(self.parameters, self.gamma_svm, *gamma_list)
+        self.gamma_svm_menu.grid(row = 3, column = 1, pady = 2) 
+
+        #widgets and menu for class weights
+        cw_label_svm = tk.Label(self.parameters, text="Class Weight:", padx=10)
+        cw_label_svm.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
+
+        self.cw_svm = tk.StringVar(root)
+        self.cw_svm.set('balanced') #default value
+
+        self.cw_svm_menu = OptionMenu(self.parameters, self.cw_svm, *['balanced', 'weighted'])
+        self.cw_svm_menu.grid(row = 4, column = 1, pady = 2) 
+
+    def rf(self):
+
+        #widgets and menu for n_estimators
+        numest_label_rf = tk.Label(self.parameters, text="N_estimators:", padx=10)
+        numest_label_rf.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        self.num_est_rf = tk.StringVar(root)
+        self.num_est_rf.set(100) #default value
+
+        self.num_eft_rf_menu = OptionMenu(self.parameters, self.num_est_rf, *[100, 200, 400, 600, 800, 1000])
+        self.num_eft_rf_menu.grid(row = 1, column = 1, pady = 2) 
+
+        #widgets and menu for min_samples_split chosen parameter
+        mss_label_rf = tk.Label(self.parameters, text="Min_samples_split:", padx=10)
+        mss_label_rf.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+
+        self.mss_rf = tk.StringVar(root)
+        self.mss_rf.set(2) #default value
+
+        self.mss_rf_menu = OptionMenu(self.parameters, self.mss_rf, *[2,3,4,5])
+        self.mss_rf_menu.grid(row = 2, column = 1, pady = 2) 
 
     def knn(self):
 
@@ -522,7 +652,7 @@ class MainApplication(tk.Frame):
         treescrolly.pack(side="right", fill="y") # make the scrollbar fill the y axis of the Treeview widget
 
     def File_dialog(self):
-        filename = filedialog.askopenfilename(initialdir="/E:/OneDrive/Documents/University/Year 3/Project/Notebooks/Data",
+        filename = filedialog.askopenfilename(initialdir="/E:/OneDrive/Documents/University/Year 3/Project/financial-ml-demo/Data",
                                             title="Select A File",
                                             filetype=(("csv files", "*.csv"),("All Files", "*.*")))
         self.label_file["text"] = filename
@@ -542,13 +672,13 @@ class MainApplication(tk.Frame):
         #Remove data with volume of 0 as this corresponds to a weekend when no trading occurs
         data = data[data['Volume'] != 0]
         
-        data['Adj_Close'] = data.Close.ewm(alpha=0.1).mean()
+        #data['Adj_Close'] = data.Close.ewm(alpha=0.1).mean()
 
         data['High_MA'] = data.High.rolling(3).mean()
 
         data['Low_MA'] = data.Low.rolling(3).mean()
 
-        data['Returns'] = pd.DataFrame((data.High_MA+data.Low_MA/2).pct_change()).values
+        #data['Returns'] = pd.DataFrame((data.High_MA+data.Low_MA/2).pct_change()).values
 
         data = data.dropna()
         

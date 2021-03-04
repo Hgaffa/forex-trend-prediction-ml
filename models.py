@@ -70,26 +70,23 @@ class Models:
 
     def __init__(self, master=None, data=None, old_returns=None):
 
-        self.df = data
+        self.df = data[:int(0.8*len(data))]
         
-        self.val = self.get_val_data()
+        self.val = data[int(0.8*len(data))+1:]
 
-        self.old_returns = old_returns[self.df.index]
+        self.old_returns = old_returns[:int(0.8*len(data))]
+
+        self.val_returns = old_returns[int(0.8*len(data))+1:]
+        #self.old_returns = old_returns.fillna(0)
 
         print("sad[;as;lasd,d,a", self.old_returns)
         print(self.df)
 
-    def get_val_data(self):
-
-        split = int(0.9*len(self.df))
-
-        self.df = self.df[:split]
-
-        return self.df[split+1:]
-
     #Function used to evaluate the financial viability of a model
     def financial_report(self, predictions, returns):
         
+        print(predictions)
+
         comb = pd.DataFrame(returns).reset_index()
         comb = comb.drop(columns=['Date'])
 
@@ -127,6 +124,42 @@ class Models:
         
         return sr, total, strategy, norm
 
+    def val_curve(self, X_t, y_t, model):
+
+        val_labels = self.val.Labels
+
+        print(val_labels.value_counts())
+
+        val = self.val.copy().drop(columns=['Labels'])
+
+        X_train = pd.DataFrame(X_t)
+
+        print("sadjaspmd YOOO", X_train)
+
+        y_train = y_t
+
+        train_scores = []
+        val_scores = []
+
+        training_sets = np.linspace(50, len(X_train), 10, dtype='int')
+
+        for i in training_sets:
+
+            model.fit(X_train.iloc[0:i, :], y_train.iloc[0:i])
+
+            pred = model.predict(X_train.iloc[0:i, :])
+
+            train_acc = accuracy_score(y_train.iloc[0:i], pred)
+
+            val_pred = model.predict(val)
+
+            val_acc = accuracy_score(val_labels, val_pred)
+
+            train_scores.append(train_acc)
+            val_scores.append(val_acc)
+
+        return training_sets, train_scores, val_scores
+
     #General model evaluation report function
     def model_report(self, model, scaled):
 
@@ -139,6 +172,8 @@ class Models:
         #get passed model
         clf = model
 
+        clf.fit(X_train, y_train)
+
         #predict x_test
         pred = clf.predict(X_test)
         
@@ -150,6 +185,8 @@ class Models:
         
         #Financial report
         sr, total, strategy, norm = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
+
+        training_sets, train_scores, val_scores = self.val_curve(X_train, y_train, clf)
         
         print()
         print("Model Results:")
@@ -168,7 +205,7 @@ class Models:
                                     display_labels=[-1,1],
                                     cmap=plt.cm.Blues, ax=ax)
         
-        return clf, X_test, y_test, pred, sr, total, strategy, norm
+        return clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores
 
     #Function used to split data
     def get_split(self, train_size, scale):
@@ -202,11 +239,18 @@ class Models:
     def get_knn(self, nn, metric, alg):
 
         #Split data
-        X_train, X_test, y_train, y_test = self.get_split(0.8, True)
-
         clf = KNeighborsClassifier(n_neighbors=int(nn), metric=metric, algorithm=alg, n_jobs=-1)
-
-        clf.fit(X_train, y_train)
 
         return self.model_report(clf, True)
 
+    def get_rf(self, n_est, min_samples):
+
+        clf = RandomForestClassifier(n_estimators=n_est, min_samples_split=min_samples, n_jobs=-1)
+
+        return self.model_report(clf, True)
+
+    def get_svm(self, kern, c, g, w):
+
+        clf = SVC(kernel=kern, C=c, gamma=g, class_weight = w)
+
+        return self.model_report(clf, True)
