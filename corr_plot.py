@@ -18,13 +18,15 @@ from tkinter import *
 
 class CorrelationPlot(Toplevel): 
       
-    def __init__(self, master = None, data = None): 
+    def __init__(self, master = None, data = None, old_returns = None): 
           
         super().__init__(master = master) 
 
         self.geometry("800x700")
 
         self.plotter=None
+
+        self.Returns = old_returns.fillna(0)
 
         #Frame for correlation plot
         self.corr_plot = tk.LabelFrame(self, text="Correlation with future returns")
@@ -51,7 +53,7 @@ class CorrelationPlot(Toplevel):
 
         ax = fig.subplots()
 
-        corr_sent = self.df.copy().drop(columns=['Labels']).corrwith(self.df.Returns.shift(-1))
+        corr_sent = self.df.copy().drop(columns=['Labels']).corrwith(self.Returns)
 
         corr_sent.sort_values(ascending=False).plot.barh(title='Feature Correlation with Next Day Returns', ax=ax)
 

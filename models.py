@@ -70,14 +70,13 @@ class Models:
 
     def __init__(self, master=None, data=None, old_returns=None):
 
-        self.df = data[:int(0.8*len(data))]
+        self.df = data
         
-        self.val = data[int(0.8*len(data))+1:]
+        #self.val = data[int(0.9*len(data))+1:]
 
-        self.old_returns = old_returns[:int(0.8*len(data))]
+        self.old_returns = old_returns.fillna(0)
 
-        self.val_returns = old_returns[int(0.8*len(data))+1:]
-        #self.old_returns = old_returns.fillna(0)
+        #self.val_returns = old_returns[int(0.9*len(data))+1:]
 
         print("sad[;as;lasd,d,a", self.old_returns)
         print(self.df)
@@ -124,24 +123,20 @@ class Models:
         
         return sr, total, strategy, norm
 
-    def val_curve(self, X_t, y_t, model):
+    def val_curve(self, X_train, y_train, X_test, y_test, model):
 
-        val_labels = self.val.Labels
+        val_labels = y_test
 
         print(val_labels.value_counts())
 
-        val = self.val.copy().drop(columns=['Labels'])
+        val = pd.DataFrame(X_test)
 
-        X_train = pd.DataFrame(X_t)
-
-        print("sadjaspmd YOOO", X_train)
-
-        y_train = y_t
+        X_train = pd.DataFrame(X_train)
 
         train_scores = []
         val_scores = []
 
-        training_sets = np.linspace(50, len(X_train), 10, dtype='int')
+        training_sets = np.linspace(50, len(X_train), 100, dtype='int')
 
         for i in training_sets:
 
@@ -186,7 +181,7 @@ class Models:
         #Financial report
         sr, total, strategy, norm = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
 
-        training_sets, train_scores, val_scores = self.val_curve(X_train, y_train, clf)
+        training_sets, train_scores, val_scores = self.val_curve(X_train, y_train, X_test, y_test, clf)
         
         print()
         print("Model Results:")

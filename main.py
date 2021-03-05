@@ -121,30 +121,59 @@ class MainApplication(tk.Frame):
         self.variable_model_choice.set("KNN") #default value
 
         self.models_dropdown = OptionMenu(self.classifier_frame, self.variable_model_choice, *["KNN",'SVM','RF','ADB'], command= lambda event: self.set_model_params())
-        self.models_dropdown.place(relx=0.1, rely=0.5, anchor='center')
+        self.models_dropdown.place(relx=0.14, rely=0.5, anchor='center')
 
-        train_button = tk.Button(self.classifier_frame, text="Train Model", command=lambda: self.train_model(),padx=10)
-        train_button.place(rely=0.5, relx=0.3, anchor='center')
+        train_button = tk.Button(self.classifier_frame, text="Evaluate Model", command=lambda: self.train_model(),padx=10)
+        train_button.place(rely=0.5, relx=0.45, anchor='center')
 
-        test_button = tk.Button(self.classifier_frame, text="Test Model", command=lambda: None,padx=10)
-        test_button.place(rely=0.5, relx=0.52, anchor='center')
+        backtest_button = tk.Button(self.classifier_frame, text="Backtest Model", command=lambda: self.backtest_model(),padx=10)
+        backtest_button.place(rely=0.5, relx=0.8, anchor='center')
 
-        backtest_button = tk.Button(self.classifier_frame, text="Backtest Model", command=lambda: None,padx=10)
-        backtest_button.place(rely=0.5, relx=0.76, anchor='center')
+    def backtest_model(self):
+
+        plt.clf()
+
+        fig2, ax2 = plt.subplots(figsize=(8,2.5))
+        ax2.clear()
+        ax2.grid(True)
+        ax2.set_title("Model Cumulative Returns")
+        ax2.set_ylabel("Returns")
+        ax2.set_xlabel("Date")
+
+        ax2.plot(self.norm, label="Returns")
+        ax2.plot(self.strategy, label="Strategy")
+        ax2.legend()
+
+        self.bt_canvas.figure = fig2
+
+        self.bt_canvas.draw()
+
+        #output model results financials
+        sr_label = tk.Label(self.eval_frame, text="Sharpe's Ratio: {0:.2f}".format(self.sr.values[0]), padx=10)
+        sr_label.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        eq_before_label = tk.Label(self.eval_frame, text="Equity before backtest: £1000.00", padx=10)
+        eq_before_label.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+        
+        eq_after_label = tk.Label(self.eval_frame, text="Equity after backtest: £{0:.2f}".format(self.total.values[0]), padx=10)
+        eq_after_label.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
+
+        tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((self.total.values[0] - 1000)/1000), padx=10)
+        tot_return_label.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
 
     def train_model(self):
 
         if self.variable_model_choice.get() == "KNN":
 
-            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
 
         elif self.variable_model_choice.get() == "RF":
 
-            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_rf(int(self.num_est_rf.get()), int(self.mss_rf.get()))
+            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_rf(int(self.num_est_rf.get()), int(self.mss_rf.get()))
 
         elif self.variable_model_choice.get() == "SVM":
 
-            clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
+            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
 
         plt.clf()
 
@@ -159,22 +188,6 @@ class MainApplication(tk.Frame):
         self.cm_canvas.figure = fig
 
         self.cm_canvas.draw()
-
-        plt.clf()
-
-        fig2, ax2 = plt.subplots(figsize=(8,2.5))
-        ax2.clear()
-        ax2.grid(True)
-        ax2.set_title("Model Cumulative Returns")
-        ax2.set_ylabel("Returns")
-        ax2.set_xlabel("Date")
-
-        ax2.plot(norm, label="Returns")
-        ax2.plot(strategy, label="Strategy")
-
-        self.bt_canvas.figure = fig2
-
-        self.bt_canvas.draw()
         
         plt.clf()
 
@@ -189,20 +202,6 @@ class MainApplication(tk.Frame):
         self.vc_canvas.figure = fig3
 
         self.vc_canvas.draw()
-
-        #output model results financials
-        sr_label = tk.Label(self.eval_frame, text="Sharpe's Ratio: {0:.2f}".format(sr.values[0]), padx=10)
-        sr_label.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
-
-        eq_before_label = tk.Label(self.eval_frame, text="Equity before backtest: £1000.00", padx=10)
-        eq_before_label.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
-        
-        eq_after_label = tk.Label(self.eval_frame, text="Equity after backtest: £{0:.2f}".format(total.values[0]), padx=10)
-        eq_after_label.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
-
-        tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((total.values[0] - 1000)/1000), padx=10)
-        tot_return_label.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
-
 
     def set_model_params(self):
 
@@ -345,7 +344,7 @@ class MainApplication(tk.Frame):
         self.visualization_frame = tk.LabelFrame(root, text="Data Visualization")
         self.visualization_frame.place(height=150, width=200, rely=0.2, relx=0.41)
 
-        correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: CorrelationPlot(root, self.df))
+        correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: CorrelationPlot(root, self.df, self.old_returns.shift(-1)))
         correlation_button.place(relx=0.5, rely=0.2, anchor='center', width=150)
 
         heatmap_button = tk.Button(self.visualization_frame, text="Heatmap Plot", command=lambda: Heatmap(root, self.df))
@@ -476,8 +475,9 @@ class MainApplication(tk.Frame):
 
         fig, ax = plt.subplots(figsize=(10,3.2))
 
-        ax.plot(self.df[self.variable.get()])
+        ax.plot(self.df[self.variable.get()], label=str(self.variable.get()))
         ax.grid(True)
+        ax.legend()
 
         ax.set_title(self.variable.get())
         ax.set_ylabel(self.variable.get())
