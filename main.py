@@ -13,6 +13,8 @@ from models import Models
 
 import seaborn as sns
 
+from sklearn.tree import DecisionTreeClassifier
+
 from sklearn.metrics import plot_confusion_matrix
 from sklearn.metrics import confusion_matrix
 
@@ -35,6 +37,26 @@ class MainApplication(tk.Frame):
 
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, *kwargs)
+
+        #file menu
+        menubar = Menu(self.master)
+        self.master.config(menu=menubar)
+
+        self.labeltype = tk.StringVar(root)
+        self.labeltype.set(1) #default value
+
+        fileMenu = Menu(menubar)
+
+
+        submenu = Menu(fileMenu)
+        submenu.add_command(label="Smoothed Price Horizon", command = self.setSmoothedLabels)
+        submenu.add_command(label="Raw Price Horizon", command= self.setRawLabels)
+        fileMenu.add_cascade(label='Labelling Method', menu=submenu, underline=0)
+
+        fileMenu.add_separator()
+
+        fileMenu.add_command(label="Exit", underline=0, command=self.onExit)
+        menubar.add_cascade(label="File", underline=0, menu=fileMenu)
 
         self.df = None
 
@@ -69,6 +91,22 @@ class MainApplication(tk.Frame):
         self.initialise_feature_dropdown()
 
         self.plotter = None
+
+    def setRawLabels(self):
+
+        self.labeltype.set(1)
+
+        print("RAW")
+
+    def setSmoothedLabels(self):
+
+        self.labeltype.set(0)
+
+        print("SMOOTH")
+
+    def onExit(self):
+
+        self.quit()
 
     def initialize_model_frames(self):
 
@@ -120,7 +158,7 @@ class MainApplication(tk.Frame):
         self.variable_model_choice = tk.StringVar(root)
         self.variable_model_choice.set("KNN") #default value
 
-        self.models_dropdown = OptionMenu(self.classifier_frame, self.variable_model_choice, *["KNN",'SVM','RF','ADB'], command= lambda event: self.set_model_params())
+        self.models_dropdown = OptionMenu(self.classifier_frame, self.variable_model_choice, *["KNN",'SVM','RF','ADB','LOGR'], command= lambda event: self.set_model_params())
         self.models_dropdown.place(relx=0.14, rely=0.5, anchor='center')
 
         train_button = tk.Button(self.classifier_frame, text="Evaluate Model", command=lambda: self.train_model(),padx=10)
@@ -158,7 +196,7 @@ class MainApplication(tk.Frame):
         eq_after_label = tk.Label(self.eval_frame, text="Equity after backtest: £{0:.2f}".format(self.total.values[0]), padx=10)
         eq_after_label.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
 
-        tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((self.total.values[0] - 1000)/1000), padx=10)
+        tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((self.total.values[0] - 1000)/1000*100), padx=10)
         tot_return_label.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
 
     def train_model(self):
@@ -175,6 +213,15 @@ class MainApplication(tk.Frame):
 
             clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
 
+        elif self.variable_model_choice.get() == "ADB":
+
+            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_adb(int(self.n_est_adb.get()), float(self.lr_adb.get()), self.base_est_list[int(self.be_adb.get())])
+        
+        elif self.variable_model_choice.get() == "LOGR":
+
+            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_logr(int(self.max_itr_logr.get()), self.cw_logr.get(), float(self.c_logr.get()))
+        
+        
         plt.clf()
 
         fig, ax = plt.subplots(figsize=(4,4))
@@ -220,6 +267,96 @@ class MainApplication(tk.Frame):
         elif self.variable_model_choice.get() == "SVM":
 
             self.svm()
+
+        elif self.variable_model_choice.get() == "ADB":
+
+            self.adboost()
+
+        elif self.variable_model_choice.get() == "LOGR":
+
+            self.logr()
+
+    def logr(self):
+
+        #widgets and menu for max_iter
+        max_iter_label_logr = tk.Label(self.parameters, text="Max Iterations:", padx=10)
+        max_iter_label_logr.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        self.max_itr_logr = tk.StringVar(root)
+        self.max_itr_logr.set(100) #default value
+
+        self.max_itr_menu = OptionMenu(self.parameters, self.max_itr_logr, *[100, 200, 400, 600, 800, 1000])
+        self.max_itr_menu.grid(row = 1, column = 1, pady = 2)
+
+        #widgets and menu for class weight
+        cw_label_logr = tk.Label(self.parameters, text="Class Weight:", padx=10)
+        cw_label_logr.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+
+        self.cw_logr = tk.StringVar(root)
+        self.cw_logr.set('balanced') #default value
+
+        self.cw_menu = OptionMenu(self.parameters, self.cw_logr, *['balanced','None'])
+        self.cw_menu.grid(row = 2, column = 1, pady = 2)
+
+        #widgets and menu for C
+        c_label_logr = tk.Label(self.parameters, text="C:", padx=10)
+        c_label_logr.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
+
+        c_exp = [-5,-3,-1,1,3,5,7,9,11,13,15]
+
+        c_list = []
+
+        for i in c_exp:
+            c_list.append(2**i)
+
+        self.c_logr = tk.StringVar(root)
+        self.c_logr.set(2) #default value
+
+        self.c_menu = OptionMenu(self.parameters, self.c_logr, *c_list)
+        self.c_menu.grid(row = 3, column = 1, pady = 2)
+
+
+
+    def adboost(self):
+
+        #widgets and menu for n_estimators
+        n_est_label_abd = tk.Label(self.parameters, text="n_estimators:", padx=10)
+        n_est_label_abd.grid(row = 1, column = 0, sticky = 'W', pady = 2) 
+
+        self.n_est_adb = tk.StringVar(root)
+        self.n_est_adb.set(50) #default value
+
+        self.n_est_menu = OptionMenu(self.parameters, self.n_est_adb, *[50,100,200,400,500])
+        self.n_est_menu.grid(row = 1, column = 1, pady = 2)
+
+        #widgets and menu for learning rate
+        lr_label_adb = tk.Label(self.parameters, text="Learning Rate:", padx=10)
+        lr_label_adb.grid(row = 2, column = 0, sticky = 'W', pady = 2) 
+
+        self.lr_adb = tk.StringVar(root)
+        self.lr_adb.set(0.1) #default value
+
+        self.lr_menu = OptionMenu(self.parameters, self.lr_adb, *[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+        self.lr_menu.grid(row = 2, column = 1, pady = 2)
+
+        #widgets and menu for base estimator
+        be_label_adb = tk.Label(self.parameters, text="Base Estimators:", padx=10)
+        be_label_adb.grid(row = 3, column = 0, sticky = 'W', pady = 2) 
+
+        self.base_est_list = []
+        
+        max_depth = []
+
+        for i in range(1,21):
+            
+            self.base_est_list.append(DecisionTreeClassifier(max_depth=i))
+            max_depth.append(i)
+
+        self.be_adb = tk.StringVar(root)
+        self.be_adb.set(1) #default value
+
+        self.be_adb_menu = OptionMenu(self.parameters, self.be_adb, *max_depth)
+        self.be_adb_menu.grid(row = 3, column = 1, pady = 2)
 
     def svm(self):
 
@@ -378,7 +515,18 @@ class MainApplication(tk.Frame):
 
         self.old_returns = np.log(data.Close) - np.log(data.Close.shift(1))
 
-        self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+        if int(self.labeltype.get()) == 0:
+
+            print("SMOOTHED")
+
+            self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+
+        else:
+
+            print("RAW")
+
+            self.labels = pd.DataFrame(self.old_returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+
 
         print(self.df.index)
 

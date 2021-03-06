@@ -242,10 +242,23 @@ class Models:
 
         clf = RandomForestClassifier(n_estimators=n_est, min_samples_split=min_samples, n_jobs=-1)
 
-        return self.model_report(clf, True)
+        return self.model_report(clf, False)
 
     def get_svm(self, kern, c, g, w):
 
         clf = SVC(kernel=kern, C=c, gamma=g, class_weight = w)
 
         return self.model_report(clf, True)
+
+    def get_adb(self, n_est, lr, b_est):
+
+        clf = AdaBoostClassifier(n_estimators=n_est, learning_rate=lr, base_estimator=b_est)
+
+        return self.model_report(clf, False)
+
+    def get_logr(self, max_it, cw, c):
+
+        clf = LogisticRegression(max_iter=max_it, class_weight=cw, C=c)
+
+        return self.model_report(clf, True)
+
