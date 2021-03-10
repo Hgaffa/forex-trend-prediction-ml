@@ -95,6 +95,11 @@ class Models:
         strategy = tot.cumsum().apply(np.exp)
         norm = comb.cumsum().apply(np.exp)
 
+        roll_max = strategy.cummax()
+        daily_drawdown = strategy/roll_max - 1
+        max_daily_drawdown = daily_drawdown.cummin()
+        md = np.min(max_daily_drawdown.to_numpy())
+
         cum_returns = pd.DataFrame(index=predictions.index, columns=['Returns'])
         
         total = 1000
@@ -121,7 +126,7 @@ class Models:
         
         ax2.plot(ind, cum_returns)
         
-        return sr, total, strategy, norm
+        return sr, total, strategy, norm, md
 
     def val_curve(self, X_train, y_train, X_test, y_test, model):
 
@@ -179,7 +184,7 @@ class Models:
         f1 = f1_score(y_test, pred, average='weighted')
         
         #Financial report
-        sr, total, strategy, norm = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
+        sr, total, strategy, norm, md = self.financial_report(pd.DataFrame(pred), self.old_returns[int(len(self.df)*0.8)+1:])
 
         training_sets, train_scores, val_scores = self.val_curve(X_train, y_train, X_test, y_test, clf)
         
@@ -200,7 +205,7 @@ class Models:
                                     display_labels=[-1,1],
                                     cmap=plt.cm.Blues, ax=ax)
         
-        return clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores
+        return clf, X_test, y_test, pred, sr, total, strategy, norm, training_sets, train_scores, val_scores, md
 
     #Function used to split data
     def get_split(self, train_size, scale):

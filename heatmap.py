@@ -51,6 +51,7 @@ class Heatmap(Toplevel):
         self.plotter.pack(fill='both')
 
         ax = fig.subplots()
+        ax.set_title("Input Varible Correlation Heatmap")
 
         correlation_data = self.df.corr()
 

@@ -87,6 +87,15 @@ class PCAPlot(Toplevel):
                 plot_colours.append('yellow')
 
         ax.scatter(X_pca['PCA0'], X_pca['PCA1'], X_pca['PCA2'], c=plot_colours, cmap="Set2_r", s=60)
+
+        import matplotlib.patches as mpatches
+
+        legend_dict = { 'Uptrend': 'blue', 'Downtrend': 'yellow'}
+        patch_list = []
+        for key in legend_dict:
+            data_key = mpatches.Patch(color=legend_dict[key], label=key)
+            patch_list.append(data_key)
+        ax.legend(handles=patch_list)
         
         # make simple, bare axis lines through space:
         xAxisLine = ((min(X_pca['PCA0']), max(X_pca['PCA0'])), (0, 0), (0,0))

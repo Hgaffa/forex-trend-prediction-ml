@@ -11,6 +11,9 @@ from corr_plot import CorrelationPlot
 from pca import PCAPlot
 from models import Models
 
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+
 import seaborn as sns
 
 from sklearn.tree import DecisionTreeClassifier
@@ -72,11 +75,11 @@ class MainApplication(tk.Frame):
     
         #initialise frame for changing plot data (dropdown menu)
         self.choose_data = tk.LabelFrame(root, text="Choose Plot Data")
-        self.choose_data.place(height=50, width=200, rely=0.3, relx=0)
+        self.choose_data.place(height=50, width=200, rely=0.33, relx=0)
 
         #initialise frame for plotting data
         self.close_plot_frame = tk.LabelFrame(root, text="Data Plot")
-        self.close_plot_frame.place(height=400, width=1000, rely=0.35, relx=0)
+        self.close_plot_frame.place(height=400, width=1000, rely=0.38, relx=0)
 
         self.initialize_transform()
 
@@ -199,28 +202,40 @@ class MainApplication(tk.Frame):
         tot_return_label = tk.Label(self.eval_frame, text="Total Return: {0:.2f}%".format((self.total.values[0] - 1000)/1000*100), padx=10)
         tot_return_label.grid(row = 4, column = 0, sticky = 'W', pady = 2) 
 
+        max_drawdown_label = tk.Label(self.eval_frame, text="Max Drawdown: {0:.2f}%".format(self.md*100), padx=10)
+        max_drawdown_label.grid(row = 1, column = 2, sticky = 'W', pady = 2) 
+
     def train_model(self):
 
         if self.variable_model_choice.get() == "KNN":
 
-            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
+            clf, X_test, self.y_test, self.pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores, self.md = Models(root, self.df, self.old_returns.shift(-1)).get_knn(self.num_neighb_var.get(),  self.metric_knn.get(), self.alg_knn.get())
 
         elif self.variable_model_choice.get() == "RF":
 
-            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_rf(int(self.num_est_rf.get()), int(self.mss_rf.get()))
+            clf, X_test, self.y_test, self.pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores, self.md = Models(root, self.df, self.old_returns.shift(-1)).get_rf(int(self.num_est_rf.get()), int(self.mss_rf.get()))
 
         elif self.variable_model_choice.get() == "SVM":
 
-            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
+            clf, X_test, self.y_test, self.pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores, self.md = Models(root, self.df, self.old_returns.shift(-1)).get_svm(self.kernel_svm.get(), float(self.c_svm.get()), float(self.gamma_svm.get()), self.cw_svm.get())
 
         elif self.variable_model_choice.get() == "ADB":
 
-            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_adb(int(self.n_est_adb.get()), float(self.lr_adb.get()), self.base_est_list[int(self.be_adb.get())])
+            clf, X_test, self.y_test, self.pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores, self.md = Models(root, self.df, self.old_returns.shift(-1)).get_adb(int(self.n_est_adb.get()), float(self.lr_adb.get()), self.base_est_list[int(self.be_adb.get())])
         
         elif self.variable_model_choice.get() == "LOGR":
 
-            clf, X_test, y_test, pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores = Models(root, self.df, self.old_returns.shift(-1)).get_logr(int(self.max_itr_logr.get()), self.cw_logr.get(), float(self.c_logr.get()))
+            clf, X_test, self.y_test, self.pred, self.sr, self.total, self.strategy, self.norm, training_sets, train_scores, val_scores, self.md = Models(root, self.df, self.old_returns.shift(-1)).get_logr(int(self.max_itr_logr.get()), self.cw_logr.get(), float(self.c_logr.get()))
         
+        for widget in self.eval_frame.winfo_children():
+            widget.destroy()
+
+        #show model classification metrics
+        accuracy = tk.Label(self.eval_frame, text="Accuracy: {0:.2f}%".format(accuracy_score(self.y_test, self.pred)*100), padx=10)
+        accuracy.grid(row = 2, column = 2, sticky = 'W', pady = 2) 
+
+        f1 = tk.Label(self.eval_frame, text="F1-Score: {0:.2f}%".format(f1_score(self.y_test, self.pred)*100), padx=10)
+        f1.grid(row = 3, column = 2, sticky = 'W', pady = 2) 
         
         plt.clf()
 
@@ -228,7 +243,7 @@ class MainApplication(tk.Frame):
         ax.clear()
         ax.grid(False)
 
-        plot_confusion_matrix(clf, X_test, y_test,                           
+        plot_confusion_matrix(clf, X_test, self.y_test,                           
                                             display_labels=[-1,1],
                                             cmap=plt.cm.Blues, ax=ax)
         
@@ -479,7 +494,7 @@ class MainApplication(tk.Frame):
     def initialize_visualizations(self):
 
         self.visualization_frame = tk.LabelFrame(root, text="Data Visualization")
-        self.visualization_frame.place(height=150, width=200, rely=0.2, relx=0.41)
+        self.visualization_frame.place(height=150, width=200, rely=0.23, relx=0.41)
 
         correlation_button = tk.Button(self.visualization_frame, text="Correlation Plot", command=lambda: CorrelationPlot(root, self.df, self.old_returns.shift(-1)))
         correlation_button.place(relx=0.5, rely=0.2, anchor='center', width=150)
@@ -494,7 +509,7 @@ class MainApplication(tk.Frame):
     def initialize_labelling(self):
 
         self.labelling_frame = tk.LabelFrame(root, text="Generate Labels")
-        self.labelling_frame.place(height=50, width=200, rely=0.25, relx=0.3)
+        self.labelling_frame.place(height=50, width=200, rely=0.28, relx=0.3)
 
         label_generation_button = tk.Button(self.labelling_frame, text="Label Data", command=lambda: self.generate_labels(),padx=10)
         label_generation_button.place(relx = 0.5, rely = 0.5, anchor='center')
@@ -511,7 +526,9 @@ class MainApplication(tk.Frame):
 
         data['HL_Avg'] = pd.DataFrame((data.High + data.Low)/2)
 
-        returns = np.log(data.HL_Avg_Rolling) - np.log(data.HL_Avg_Rolling.shift(1))
+        raw_returns = np.log(data.HL_Avg) - np.log(data.HL_Avg.shift(5))
+
+        smoothed_returns = np.log(data.HL_Avg_Rolling) - np.log(data.HL_Avg_Rolling.shift(5))
 
         self.old_returns = np.log(data.Close) - np.log(data.Close.shift(1))
 
@@ -519,13 +536,13 @@ class MainApplication(tk.Frame):
 
             print("SMOOTHED")
 
-            self.labels = pd.DataFrame(returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+            self.labels = pd.DataFrame(smoothed_returns.shift(-5).values, index=smoothed_returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
 
         else:
 
             print("RAW")
 
-            self.labels = pd.DataFrame(self.old_returns.shift(-1).values, index=returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
+            self.labels = pd.DataFrame(raw_returns.shift(-1).values, index=raw_returns.index, columns=['Labels']).applymap(lambda x: 1 if x>= 0 else -1).astype(int)
 
 
         print(self.df.index)
@@ -545,12 +562,12 @@ class MainApplication(tk.Frame):
     def initialize_feature_selection(self):
 
         self.feature_selection_frame = tk.LabelFrame(root, text="Feature Selection")
-        self.feature_selection_frame.place(height=50, width=200, rely=0.3, relx=0.3)
+        self.feature_selection_frame.place(height=50, width=200, rely=0.33, relx=0.3)
 
         self.variable_fs = tk.StringVar(root)
-        self.variable_fs.set(5) #default value
+        self.variable_fs.set(6) #default value
 
-        self.num_features = OptionMenu(self.feature_selection_frame, self.variable_fs, *[5,8,12,15,17,20])
+        self.num_features = OptionMenu(self.feature_selection_frame, self.variable_fs, *[6,8,10,12,14,16,18,20])
         self.num_features.place(relx=0.15, rely=0.45, anchor='center')
 
         fs_button = tk.Button(self.feature_selection_frame, text="Select Features", command=lambda: self.feature_selection(),padx=10)
@@ -583,11 +600,11 @@ class MainApplication(tk.Frame):
 
         #frame for adf test + output
         self.stationary_frame = tk.LabelFrame(root, text="ADF Test/Stationarity Output")
-        self.stationary_frame.place(height=200, width=1000, rely=0.75, relx=0)
+        self.stationary_frame.place(height=200, width=1000, rely=0.78, relx=0)
 
         #frame for transform button for stationarity
         self.transform_frame = tk.LabelFrame(root, text="Transform Data")
-        self.transform_frame.place(height=50, width=200, rely=0.2, relx=0.3)
+        self.transform_frame.place(height=50, width=200, rely=0.23, relx=0.3)
 
         button2 = tk.Button(self.transform_frame, text="Transfrom Data", command=lambda: self.data_transform(),padx=10)
         button2.place(relx = 0.5, rely= 0.5, anchor='center')
@@ -646,7 +663,7 @@ class MainApplication(tk.Frame):
     def generate_features(self):
 
         self.ta_frame = tk.LabelFrame(root, text="Feature Engineering")
-        self.ta_frame.place(height=150, width=150, rely=0.2, relx=0.22)
+        self.ta_frame.place(height=150, width=150, rely=0.23, relx=0.22)
 
         ta_button = tk.Button(self.ta_frame, text="Generate TA Features", command=lambda: self.update_tree_ta())
         ta_button.place(relx=0.5, rely=0.2, anchor='center')
@@ -757,7 +774,7 @@ class MainApplication(tk.Frame):
     def eda(self):
         #Frame for performing EDA
         self.eda_frame = tk.LabelFrame(root, text="EDA")
-        self.eda_frame.place(height=50, width=185,  rely=0.3, relx=0.11)
+        self.eda_frame.place(height=50, width=185,  rely=0.33, relx=0.11)
 
         button3 = tk.Button(self.eda_frame, text="Perform EDA", command=lambda: EDA(root, self.df[self.variable.get()]))
         button3.place(relx=0.5, rely=0.5, anchor='center')
@@ -765,7 +782,7 @@ class MainApplication(tk.Frame):
     def initialise_open_file(self):
         # Frame for visualizing data
         self.file_frame = tk.LabelFrame(root, text="Open File")
-        self.file_frame.place(height=100, width=400, rely=0.2, relx=0)
+        self.file_frame.place(height=100, width=400, rely=0.23, relx=0)
 
         # Buttons
         button1 = tk.Button(self.file_frame, text="Browse A File", command=lambda: self.File_dialog())
@@ -785,7 +802,7 @@ class MainApplication(tk.Frame):
 
          # Frame for TreeView
         self.frame1 = tk.LabelFrame(root, text="Price Data")
-        self.frame1.place(height=200, width=1000, rely=0, relx=0)
+        self.frame1.place(height=230, width=1000, rely=0, relx=0)
 
         ## Treeview Widget
         self.tv1 = ttk.Treeview(self.frame1)
