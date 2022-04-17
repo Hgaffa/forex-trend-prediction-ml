@@ -35,7 +35,7 @@ from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from tkinter import *
 
-
+#Main class for Demo
 class MainApplication(tk.Frame):
 
     def __init__(self, parent, *args, **kwargs):
